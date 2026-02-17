@@ -1,0 +1,40 @@
+[tool.poetry]
+name = "breakdown-customer-backend"
+version = "0.1.0"
+description = "Customer backend for road assistance booking system"
+authors = ["Your Name <your.email@example.com>"]
+
+[tool.poetry.dependencies]
+python = "^3.9"
+fastapi = "0.104.1"
+uvicorn = {version = "0.24.0", extras = ["standard"]}
+sqlalchemy = "2.0.23"
+asyncpg = "0.29.0"
+alembic = "1.12.1"
+python-jose = {version = "3.3.0", extras = ["cryptography"]}
+passlib = {version = "1.7.4", extras = ["bcrypt"]}
+python-multipart = "0.0.6"
+pydantic = {version = "2.5.0", extras = ["email"]}
+pydantic-settings = "2.1.0"
+redis = {version = "5.0.1", extras = ["hiredis"]}
+stripe = "7.9.0"
+httpx = "0.25.1"
+python-dotenv = "1.0.0"
+twilio = "^9.8.8"
+argon2-cffi = "^25.1.0"
+boto3 = "^1.28.0"
+google-auth = "^2.23.4"
+google-auth-oauthlib = "^1.1.0"
+google-auth-httplib2 = "^0.1.1"
+authlib = "^1.2.1"
+requests = "^2.31.0"
+openai = "^1.0.0"
+psycopg2-binary = "2.9.9"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^7.4.3"
+pytest-asyncio = "^0.21.1"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stripe Payment Integration</title>
+    <script src="https://js.stripe.com/v3/"></script>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; padding: 20px; max-width: 500px; margin: 0 auto; }
+        .form-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; }
+        input { width: 100%; padding: 8px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; }
+        button { background-color: #5469d4; color: white; border: none; padding: 10px 15px; border-radius: 4px; cursor: pointer; width: 100%; font-size: 16px; }
+        button:disabled { background-color: #a0a0a0; }
+        #card-element { padding: 10px; border: 1px solid #ccc; border-radius: 4px; background: white; }
+        #payment-section { display: none; margin-top: 20px; border-top: 1px solid #eee; padding-top: 20px; }
+        #error-message { color: #fa755a; margin-top: 10px; }
+        #success-message { color: #32a852; margin-top: 10px; }
+        .price-display { font-size: 1.2em; margin-bottom: 15px; }
+    </style>
+</head>
+<body>
+    <h2>Issue Payment</h2>
+    
+    <div class="form-group">
+        <label for="token">Access Token (Bearer)</label>
+        <input type="text" id="token" placeholder="ey..." required>
+        <small style="color: #666;">Note: Use a Customer Access Token</small>
+    </div>
+
+    <div class="form-group">
+        <label for="issue-id">Issue ID</label>
+        <input type="text" id="issue-id" placeholder="UUID" required>
+    </div>
+
+    <button id="fetch-btn">Fetch Payment Details</button>
+
+    <div id="payment-section">
+        <div class="price-display">Amount to Pay: <span id="amount-display">--</span></div>
+        
+        <div class="form-group">
+            <label>Card Details</label>
+            <div id="card-element"></div>
+        </div>
+        
+        <button id="pay-btn">Pay Now</button>
+    </div>
+
+    <div id="error-message"></div>
+    <div id="success-message"></div>
+
+    <script>
+        // Initialize Stripe with the provided Publishable Key
+        const stripe = Stripe('pk_test_51ScrosAGFDMu85i0FiQAkPMPTvEDYmSzk7utHr9d4MnCydgyuhSj9zA7JVnSjcBfPWTedDk1uUyJsnlhlVSK9bDy00Oth7hZJa');
+        let elements;
+        let card;
+        let clientSecret;
+
+        const fetchBtn = document.getElementById('fetch-btn');
+        const payBtn = document.getElementById('pay-btn');
+        const paymentSection = document.getElementById('payment-section');
+        const errorMsg = document.getElementById('error-message');
+        const successMsg = document.getElementById('success-message');
+
+        // Helper to get query params
+        const urlParams = new URLSearchParams(window.location.search);
+        if(urlParams.get('token')) document.getElementById('token').value = urlParams.get('token');
+        if(urlParams.get('issue')) document.getElementById('issue-id').value = urlParams.get('issue');
+
+        fetchBtn.addEventListener('click', async () => {
+            errorMsg.textContent = '';
+            successMsg.textContent = '';
+            const token = document.getElementById('token').value.trim();
+            const issueId = document.getElementById('issue-id').value.trim();
+
+            if (!token || !issueId) {
+                errorMsg.textContent = 'Please provide both Access Token and Issue ID.';
+                return;
+            }
+
+            fetchBtn.disabled = true;
+            fetchBtn.textContent = 'Fetching...';
+
+            try {
+                // Call backend to create payment intent and get price
+                // Note: The backend expects a Customer token for this endpoint
+                // Use relative path to avoid CORS/Port issues if served from backend
+                // Also corrected path from /api/v1/stripe to /api/stripe based on backend config
+                const apiBase = window.location.origin === 'null' || window.location.protocol === 'file:' 
+                    ? 'http://localhost:8009' // Fallback for local file opening
+                    : ''; 
+                
+                const response = await fetch(`${apiBase}/api/stripe/create-payment-intent`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ issue_id: issueId })
+                });
+
+                let data;
+                const contentType = response.headers.get("content-type");
+                if (contentType && contentType.indexOf("application/json") !== -1) {
+                    data = await response.json();
+                } else {
+                    data = { detail: await response.text() };
+                }
+
+                if (!response.ok) {
+                    console.error('Error response:', data);
+                    throw new Error(data.detail || JSON.stringify(data) || 'Failed to fetch payment details');
+                }
+
+                clientSecret = data.client_secret;
+                const amount = data.amount; // Amount in cents
+
+                // Display amount (convert to dollars/currency)
+                document.getElementById('amount-display').textContent = '$' + (amount / 100).toFixed(2);
+
+                // Initialize Stripe Elements
+                elements = stripe.elements();
+                card = elements.create('card');
+                card.mount('#card-element');
+
+                paymentSection.style.display = 'block';
+                fetchBtn.style.display = 'none'; // Hide fetch button after success
+
+            } catch (err) {
+                // Check for Stripe iframe sandbox error
+                if (err.message && err.message.includes('allow-same-origin')) {
+                    errorMsg.innerHTML = 'Stripe.js requires "allow-same-origin" if sandboxed.<br>' +
+                        '<button onclick="window.open(window.location.href, \'_blank\')">Open in New Tab</button>';
+                } else {
+                    errorMsg.textContent = err.message;
+                }
+                fetchBtn.disabled = false;
+                fetchBtn.textContent = 'Fetch Payment Details';
+            }
+        });
+
+        payBtn.addEventListener('click', async () => {
+            payBtn.disabled = true;
+            payBtn.textContent = 'Processing...';
+            errorMsg.textContent = '';
+
+            try {
+                const result = await stripe.confirmCardPayment(clientSecret, {
+                    payment_method: {
+                        card: card,
+                    }
+                });
+
+                if (result.error) {
+                    throw new Error(result.error.message);
+                } else {
+                    if (result.paymentIntent.status === 'succeeded') {
+                        successMsg.textContent = 'Payment successful! ID: ' + result.paymentIntent.id + '. Verifying with server...';
+                        
+                        // Call verify endpoint to update DB status
+                        try {
+                            const apiBase = window.location.origin === 'null' || window.location.protocol === 'file:' 
+                                ? 'http://localhost:8009' 
+                                : '';
+                                
+                            const verifyResp = await fetch(`${apiBase}/api/stripe/verify-payment`, {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                    'Authorization': `Bearer ${document.getElementById('token').value.trim()}`
+                                },
+                                body: JSON.stringify({
+                                    payment_intent_id: result.paymentIntent.id,
+                                    issue_id: document.getElementById('issue-id').value.trim()
+                                })
+                            });
+                            
+                            const verifyData = await verifyResp.json();
+                            if (verifyResp.ok && verifyData.status === 'paid') {
+                                successMsg.textContent = 'Payment successful and verified! Status updated to PAID.';
+                            } else {
+                                successMsg.textContent = 'Payment successful but verification failed: ' + (verifyData.message || verifyData.detail);
+                            }
+                        } catch (e) {
+                            console.error(e);
+                            successMsg.textContent = 'Payment successful but server verification failed. Check logs.';
+                        }
+                        
+                        paymentSection.style.display = 'none';
+                    }
+                }
+            } catch (err) {
+                errorMsg.textContent = err.message;
+                payBtn.disabled = false;
+                payBtn.textContent = 'Pay Now';
+            }
+        });
+    </script>
+</body>
+</html>
