@@ -10,6 +10,7 @@ from core.dependencies import get_current_customer
 from core.notifications_websocket import notifications_manager
 from core.utils.cache import get_cached, set_cached, delete_cached
 from core.utils.s3_upload import upload_file_to_s3, get_full_url
+from core.utils.field_encryption import decrypt_field, decrypt_phone
 from typing import List, Optional
 from uuid import UUID
 import random
@@ -328,8 +329,8 @@ async def get_customer_issues(
                 "pickup_location": issue.pickup_location,
                 "images": issue.images,
                 "assigned_driver_id": issue.assigned_driver_id,
-                "assigned_driver_name": issue.assigned_driver.full_name if issue.assigned_driver else None,
-                "assigned_driver_phone": issue.assigned_driver.phone_number if issue.assigned_driver else None,
+                "assigned_driver_name": decrypt_field(issue.assigned_driver.full_name) if issue.assigned_driver else None,
+                "assigned_driver_phone": decrypt_phone(issue.assigned_driver.phone_number) if issue.assigned_driver else None,
                 "driver_lat": driver_lat,
                 "driver_lng": driver_lng,
                 "status": issue.status,
@@ -597,8 +598,8 @@ async def get_customer_issue(
             "pickup_location": issue.pickup_location,
             "images": issue.images,
             "assigned_driver_id": issue.assigned_driver_id,
-            "assigned_driver_name": issue.assigned_driver.full_name if issue.assigned_driver else None,
-            "assigned_driver_phone": issue.assigned_driver.phone_number if issue.assigned_driver else None,
+            "assigned_driver_name": decrypt_field(issue.assigned_driver.full_name) if issue.assigned_driver else None,
+            "assigned_driver_phone": decrypt_phone(issue.assigned_driver.phone_number) if issue.assigned_driver else None,
             "driver_lat": driver_lat,
             "driver_lng": driver_lng,
             "status": issue.status,
@@ -1190,8 +1191,8 @@ async def get_my_issues(
                 "pickup_location": issue.pickup_location,
                 "images": issue.images,
                 "assigned_driver_id": issue.assigned_driver_id,
-                "assigned_driver_name": issue.assigned_driver.full_name if issue.assigned_driver else None,
-                "assigned_driver_phone": issue.assigned_driver.phone_number if issue.assigned_driver else None,
+                "assigned_driver_name": decrypt_field(issue.assigned_driver.full_name) if issue.assigned_driver else None,
+                "assigned_driver_phone": decrypt_phone(issue.assigned_driver.phone_number) if issue.assigned_driver else None,
                 "driver_lat": driver_lat,
                 "driver_lng": driver_lng,
                 "status": issue.status,

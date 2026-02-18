@@ -12,36 +12,23 @@ router = APIRouter(prefix="/profile", tags=["Profile"])
 
 @router.get("/", response_model=UserResponse)
 async def get_profile(current_user = Depends(get_current_user)):
-    '''Get current user profile (cached 5 min)'''
-    cache_key = f"profile:{current_user.id}"
-    cached = await get_cached(cache_key)
-    if cached:
-        return cached
+    '''Get current user profile'''
+    if not isinstance(current_user, Customer):
+        raise HTTPException(status_code=403, detail="Only customers can access this endpoint")
     
-    # Determine role based on the type of user object
-    if isinstance(current_user, Customer):
-        role = UserRole.CUSTOMER
-    elif isinstance(current_user, Admin):
-        role = UserRole.ADMIN
-    else:
-        role = UserRole.CUSTOMER  # fallback
+    from core.utils.field_encryption import decrypt_email, decrypt_phone, decrypt_field
     
-    profile_data = UserResponse(
+    return UserResponse(
         id=current_user.id,
-        email=getattr(current_user, "email", ""),
-        full_name=getattr(current_user, "full_name", ""),
-        phone_number=getattr(current_user, "phone_number", ""),
-        role=role,
+        email=decrypt_email(current_user.email),
+        full_name=decrypt_field(current_user.full_name),
+        phone_number=decrypt_phone(current_user.phone_number),
+        role=UserRole.CUSTOMER,
         is_active=current_user.is_active,
-        is_approved=getattr(current_user, "is_approved", True),
-        is_email_verified=getattr(current_user, "is_verified", False),
+        is_approved=True,
+        is_email_verified=current_user.is_verified,
         date_joined=current_user.date_joined,
-        company_id=getattr(current_user, "company_id", None),
-        technician_type=getattr(current_user, "technician_type", None),
     )
-    
-    await set_cached(cache_key, profile_data.model_dump(), ttl=300)
-    return profile_data
 
 @router.patch("/", response_model=UserResponse)
 async def update_profile(
@@ -50,57 +37,36 @@ async def update_profile(
     db: AsyncSession = Depends(get_db)
 ):
     '''Update current user profile'''
-    # Check if email is being changed and if it already exists
-    if profile_data.email and getattr(current_user, "email", None) != profile_data.email:
-        # Check in all user tables but only for models that define an `email` column/attribute
-        for model in [Customer, Admin]:
-            # Some models (e.g. Admin) may not have an `email` column; skip those
-            if not hasattr(model, "email"):
-                continue
-            existing_user = await db.execute(
-                select(model).where(model.email == profile_data.email)
-            )
-            if existing_user.scalar_one_or_none():
-                raise HTTPException(status_code=400, detail="Email already registered")
+    if not isinstance(current_user, Customer):
+        raise HTTPException(status_code=403, detail="Only customers can access this endpoint")
     
-    # Update fields
-    if profile_data.full_name:
-        current_user.full_name = profile_data.full_name
-    if profile_data.phone_number and hasattr(current_user, 'phone_number'):
-        current_user.phone_number = profile_data.phone_number
+    from core.utils.field_encryption import encrypt_email, encrypt_phone, encrypt_field, decrypt_email, decrypt_phone, decrypt_field
+    
     if profile_data.email:
-        # Only assign email if the current user model actually supports it
-        if hasattr(current_user, 'email'):
-            current_user.email = profile_data.email
-        else:
-            # If the user type has no email field, reject the update explicitly
-            raise HTTPException(status_code=400, detail="This account type does not support email updates")
+        encrypted_email = encrypt_email(profile_data.email)
+        if current_user.email != encrypted_email:
+            existing = await db.execute(select(Customer).where(Customer.email == encrypted_email))
+            if existing.scalar_one_or_none():
+                raise HTTPException(status_code=400, detail="Email already registered")
+            current_user.email = encrypted_email
+    
+    if profile_data.full_name:
+        current_user.full_name = encrypt_field(profile_data.full_name)
+    if profile_data.phone_number:
+        current_user.phone_number = encrypt_phone(profile_data.phone_number)
     
     await db.commit()
     await db.refresh(current_user)
     
-    # Invalidate cache
-    await delete_cached(f"profile:{current_user.id}")
-    
-    # Return properly serialized response
-    if isinstance(current_user, Customer):
-        role = UserRole.CUSTOMER
-    elif isinstance(current_user, Admin):
-        role = UserRole.ADMIN
-    else:
-        role = UserRole.CUSTOMER
-    
     return UserResponse(
         id=current_user.id,
-        email=getattr(current_user, "email", ""),
-        full_name=getattr(current_user, "full_name", ""),
-        phone_number=getattr(current_user, "phone_number", ""),
-        role=role,
+        email=decrypt_email(current_user.email),
+        full_name=decrypt_field(current_user.full_name),
+        phone_number=decrypt_phone(current_user.phone_number),
+        role=UserRole.CUSTOMER,
         is_active=current_user.is_active,
-        is_approved=getattr(current_user, "is_approved", True),
-        is_email_verified=getattr(current_user, "is_verified", False),
+        is_approved=True,
+        is_email_verified=current_user.is_verified,
         date_joined=current_user.date_joined,
-        company_id=getattr(current_user, "company_id", None),
-        technician_type=getattr(current_user, "technician_type", None),
     )
 

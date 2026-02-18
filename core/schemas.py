@@ -17,26 +17,19 @@ class UserCreate(UserBase):
     company_id: Optional[int] = None
     technician_type: Optional[str] = "individual"
 
-class UserResponse(UserBase):
+class UserResponse(BaseModel):
     id: UUID
+    email: EmailStr
+    full_name: str
+    phone_number: str
     role: UserRole
     is_approved: bool
     is_active: bool
     is_email_verified: bool = False
     date_joined: datetime
-    company_id: Optional[int] = None
-    technician_type: Optional[str] = None
     
     class Config:
         from_attributes = True
-
-    @model_serializer(mode='wrap')
-    def serialize_model(self, handler):
-        data = handler(self)
-        if isinstance(data, dict):
-            data.pop('company_id', None)
-            data.pop('technician_type', None)
-        return data
 
 # Company Schemas
 class CompanyBase(BaseModel):
