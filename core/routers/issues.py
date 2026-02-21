@@ -789,8 +789,8 @@ async def negotiate_issue_price(
             "pickup_location": issue.pickup_location,
             "images": issue.images,
             "assigned_driver_id": issue.assigned_driver_id,
-            "assigned_driver_name": issue.assigned_driver.full_name if issue.assigned_driver else None,
-            "assigned_driver_phone": issue.assigned_driver.phone_number if issue.assigned_driver else None,
+            "assigned_driver_name": decrypt_field(issue.assigned_driver.full_name) if issue.assigned_driver else None,
+            "assigned_driver_phone": decrypt_phone(issue.assigned_driver.phone_number) if issue.assigned_driver else None,
             "driver_lat": driver_lat,
             "driver_lng": driver_lng,
             "status": issue.status,
@@ -799,6 +799,7 @@ async def negotiate_issue_price(
             "negotiated_price": issue.negotiated_price,
             "negotiated_status": issue.negotiated_status,
             "payment_status": issue.payment_status,
+            "scheduled_date": issue.scheduled_date,
             "created_at": issue.created_at,
             "updated_at": issue.updated_at
         }

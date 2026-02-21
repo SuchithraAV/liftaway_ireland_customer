@@ -8,6 +8,7 @@ from core.models import IssueRating, Issue, Customer, Driver, Notification
 from core.schemas import IssueRatingCreate, IssueRatingResponse
 from core.dependencies import get_current_customer
 from core.notifications_websocket import notifications_manager
+from core.utils.field_encryption import decrypt_field
 
 router = APIRouter(prefix="/issue-ratings", tags=["Issue Ratings"])
 
@@ -114,8 +115,8 @@ async def create_issue_rating(
         rating=new_rating.rating,
         comments=new_rating.comments,
         created_at=new_rating.created_at,
-        customer_name=customer.full_name,
-        driver_name=driver.full_name if driver else None
+        customer_name=decrypt_field(customer.full_name) if customer.full_name else None,
+        driver_name=decrypt_field(driver.full_name) if driver and driver.full_name else None
     )
 
 @router.get("/", response_model=List[IssueRatingResponse])
@@ -142,8 +143,8 @@ async def get_customer_ratings(
             rating=rating.rating,
             comments=rating.comments,
             created_at=rating.created_at,
-            customer_name=customer.full_name,
-            driver_name=driver.full_name if driver else None
+            customer_name=decrypt_field(customer.full_name) if customer.full_name else None,
+            driver_name=decrypt_field(driver.full_name) if driver and driver.full_name else None
         ))
     
     return response_ratings
@@ -176,8 +177,8 @@ async def get_driver_ratings(
             rating=rating.rating,
             comments=rating.comments,
             created_at=rating.created_at,
-            customer_name=customer.full_name if customer else None,
-            driver_name=driver.full_name if driver else None
+            customer_name=decrypt_field(customer.full_name) if customer and customer.full_name else None,
+            driver_name=decrypt_field(driver.full_name) if driver and driver.full_name else None
         ))
     
     return response_ratings
