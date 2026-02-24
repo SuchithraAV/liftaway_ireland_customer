@@ -7,13 +7,18 @@ import logging
 logger = logging.getLogger(__name__)
 
 class RateLimitMiddleware(BaseHTTPMiddleware):
-    """Rate limiting: 100 req/min per IP"""
+    """Rate limiting: 1000 req/min per IP (relaxed for development)"""
     
     async def dispatch(self, request: Request, call_next):
+        # Skip rate limiting for health checks and docs
         if request.url.path in ["/health/", "/docs", "/openapi.json", "/redoc"]:
             return await call_next(request)
         
         client_ip = request.client.host
+        
+        # Skip rate limiting for localhost/development
+        if client_ip in ["127.0.0.1", "localhost", "::1"]:
+            return await call_next(request)
         
         try:
             redis = await get_redis()
@@ -24,7 +29,8 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
                 if count == 1:
                     await redis.expire(key, 60)
                 
-                if count > 100:
+                # Increased limit to 1000 requests per minute
+                if count > 1000:
                     logger.warning(f"Rate limit exceeded: {client_ip}")
                     raise HTTPException(
                         status_code=status.HTTP_429_TOO_MANY_REQUESTS,
@@ -33,8 +39,8 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
                     )
                 
                 response = await call_next(request)
-                response.headers["X-RateLimit-Limit"] = "100"
-                response.headers["X-RateLimit-Remaining"] = str(max(0, 100 - count))
+                response.headers["X-RateLimit-Limit"] = "1000"
+                response.headers["X-RateLimit-Remaining"] = str(max(0, 1000 - count))
                 return response
             else:
                 return await call_next(request)
