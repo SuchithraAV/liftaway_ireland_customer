@@ -105,6 +105,8 @@ app.add_middleware(
         "https://www.liftawaysolutions.com",
         "https://liftawaysolutions.com",
         "https://customer.liftawaysolutions.com",
+        "https://customer.liftawayservices.com",
+        "https://admin.liftawayservices.com",
     ],
     allow_origin_regex=r"^http://(localhost|127\.0\.0\.1)(:\d+)?$",
     allow_credentials=True,
