@@ -105,6 +105,8 @@ app.add_middleware(
         "https://www.liftawaysolutions.com",
         "https://liftawaysolutions.com",
         "https://customer.liftawaysolutions.com",
+        "https://www.liftawayservices.com",
+        "https://liftawayservices.com",
         "https://customer.liftawayservices.com",
         "https://admin.liftawayservices.com",
     ],
