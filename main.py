@@ -102,6 +102,7 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
+        "http://localhost:3000",
         "https://www.liftawaysolutions.com",
         "https://liftawaysolutions.com",
         "https://customer.liftawaysolutions.com",
