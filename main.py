@@ -246,6 +246,7 @@ app.include_router(customer_payments_router, prefix=settings.API_V1_STR)
 app.include_router(payment_metrics_router, prefix=settings.API_V1_STR)
 app.include_router(waste_pricing_router, prefix=settings.API_V1_STR)
 app.include_router(live_location_router, prefix=settings.API_V1_STR)
+app.include_router(payment_success_router)  # Payment success/cancel pages
 
 # ------------------------------------------------------------------
 # Static Files - MUST BE AFTER ROUTERS
